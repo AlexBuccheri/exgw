@@ -62,20 +62,3 @@ class GWInput:
 
         gw_string += "</gw\n\n"
         return gw_string
-
-
-# def set_gw_input_string(gs_input: str, gw_input: GWInput, gw_template):
-#     """
-#
-#     Given a converged ground state input, set it
-#     to repeat the ground state calculation from file (due
-#     to the additions to the basis) and add the GW inputs
-#
-#     Note, both replace and format are not inplace
-#
-#     :return: GW calculation input string
-#     """
-#     gs_input = gs_input.replace('do="skip"', 'do="fromfile"')
-#     gw_input = gw_template.format(**gw_input.dict_for_format())
-#
-#     return gs_input.format(GW_INPUT=gw_input)
