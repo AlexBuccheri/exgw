@@ -4,6 +4,8 @@
 from typing import Optional, List
 import numpy as np
 
+from src.parse.writers import write_species_file_from_dict
+
 
 def maximum_valence_per_orbital(atomic_states: List[dict], l_max: int) -> np.ndarray:
     """ Find the maximum orbital shell per l-channel
@@ -124,8 +126,16 @@ def construct_optimised_basis(default_basis: dict,
 
     # Apply lo_cutoff to filter out the top end of lo_recommendations
 
-    # Inject new los into the basis, with energies from lo_recommendations
+    # Create new LOs of the form,
+    # los_per_lvalue = {0: [{'l': 0, 'matchingOrder': [0, 1], 'trialEnergy': [5.0, 5.0], 'searchE': [False, False]}, {}, {}],
+    #                   1: [{'l': 1, 'matchingOrder': [0, 1], 'trialEnergy': [7.0, 7.0], 'searchE': [False, False]}, {}, {}], ...}
+    # using lo_recommendations and some matching order pattern
 
-    # Return the new basis dictionary
+    # Inject new los into the basis, and return the new basis dictionary
 
-    # Need to write something to write this dictionary to a species file
+    # Write this dictionary to a species file
+    optimised_species = {}
+    species_str = write_species_file_from_dict(optimised_species)
+    file_name = optimised_species['species']['name'].capitalize() + '.xml'
+    with open(file_name, "w") as fid:
+        fid.write(species_str)
