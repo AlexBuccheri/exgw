@@ -120,6 +120,7 @@ def parse_species_xml(root) -> dict:
     basis_tree = species_tree[-1]
     basis: Dict[str, list] = {'default': [], 'custom': [], 'lo': []}
 
+    # Could remove the if statement be presorting into 'custom' and 'lo'
     for func in basis_tree:
         function: dict = func.attrib
 
