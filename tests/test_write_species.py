@@ -1,17 +1,18 @@
-from src.parse.writers import write_species_file_from_dict
+""" Test writing serialised species data to XML
+"""
 from src.parse.parsers import parse_species_xml
 
+from src.write.species import species_xml_str_from_dict
 
 
 def test_write_species_file_from_dict():
+    """ Uncomment the print statement to confirm printing.
+    Note, string comparison unit tests are not robust, hence why no assert.
+    :return:
+    """
     species_dict = parse_species_xml(species_str)
-    species_string = write_species_file_from_dict(species_dict)
+    species_string = species_xml_str_from_dict(species_dict)
     print(species_string)
-
-
-
-
-
 
 
 species_str = """<?xml version="1.0" encoding="utf-8"?>
