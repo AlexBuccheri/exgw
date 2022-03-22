@@ -2,8 +2,9 @@ import numpy as np
 
 from src.parse.parsers import parse_species_xml, parse_lorecommendations
 
-from src.basis.optimised_basis import construct_optimised_basis, maximum_valence_per_orbital, \
-    filter_lowest_lo_recommendations, filter_highest_lo_recommendations
+from src.basis.optimised_basis import construct_optimised_basis, maximum_pqn_per_valence_orbital, \
+    filter_lowest_lo_recommendations, filter_highest_lo_recommendations, max_nodes_per_valence_orbital, \
+    max_nodes_per_conduction_orbital, max_nodes_per_orbital_channel, n_radial_nodes
 
 
 def test_maximum_valence_per_orbital():
@@ -20,77 +21,262 @@ def test_maximum_valence_per_orbital():
                      {'n': 4, 'l': 0, 'kappa': 1, 'occ': 2.00000, 'core': False}]
 
     # l_max can be any size
-    pqn = maximum_valence_per_orbital(atomic_states, l_max=4)
-    assert (pqn == [4, 3, 3, 0, 0]).all(), "Expect 4s, 3p, 3d, 0, 0"
+    pqn = maximum_pqn_per_valence_orbital(atomic_states)
+    assert (pqn == [4, 3, 3]).all(), "Expect 4s, 3p, 3d"
 
 
-def test_filter_lowest_lo_recommendations(tmpdir):
+def test_max_nodes_per_valence_orbital():
+    # Output expected from a parsed species file for atomicStates
+    atomic_states = [{'n': 1, 'l': 0, 'kappa': 1, 'occ': 2.00000, 'core': True},
+                     {'n': 2, 'l': 0, 'kappa': 1, 'occ': 2.00000, 'core': True},
+                     {'n': 2, 'l': 1, 'kappa': 1, 'occ': 2.00000, 'core': True},
+                     {'n': 2, 'l': 1, 'kappa': 2, 'occ': 4.00000, 'core': True},
+                     {'n': 3, 'l': 0, 'kappa': 1, 'occ': 2.00000, 'core': False},
+                     {'n': 3, 'l': 1, 'kappa': 1, 'occ': 2.00000, 'core': False},
+                     {'n': 3, 'l': 1, 'kappa': 2, 'occ': 4.00000, 'core': False},
+                     {'n': 3, 'l': 2, 'kappa': 2, 'occ': 4.00000, 'core': False},
+                     {'n': 3, 'l': 2, 'kappa': 3, 'occ': 6.00000, 'core': False},
+                     {'n': 4, 'l': 0, 'kappa': 1, 'occ': 2.00000, 'core': False}]
+    l_max = 2
+
+    nodes = max_nodes_per_valence_orbital(atomic_states)
+    l_channels = {0, 1, 2}
+    assert set(nodes) == l_channels
+    assert nodes == {0: 3, 1: 1, 2: 0}, "Nodes 3, 1, 0"
+
+    pqn = maximum_pqn_per_valence_orbital(atomic_states)
+    assert nodes == {l: n_radial_nodes(pqn[l], l) for l in range(0, l_max + 1)}, \
+        "Max number of nodes should equal (pqn - l - 1)"
+
+
+def test_max_nodes_per_conduction_orbital():
+    """ Construct an optimised basis for Ti (from TiO2).
+    """
+    lo_basis_ti = [
+        {'l': 0, 'matchingOrder': [0, 1], 'trialEnergy': [-4.3784852599536, -4.3784852599536],
+         'searchE': [False, False]},
+        {'l': 0, 'matchingOrder': [0, 1], 'trialEnergy': [1.35670550183736, 1.35670550183736],
+         'searchE': [False, False]},
+        {'l': 0, 'matchingOrder': [0, 0], 'trialEnergy': [1.35670550183736, -4.37848525995355],
+         'searchE': [False, False]},
+        {'l': 0, 'matchingOrder': [1, 2], 'trialEnergy': [1.35670550183736, 1.35670550183736],
+         'searchE': [False, False]},
+        {'l': 1, 'matchingOrder': [0, 1], 'trialEnergy': [-2.69952312512447, -2.69952312512447],
+         'searchE': [False, False]},
+        {'l': 1, 'matchingOrder': [1, 2], 'trialEnergy': [-2.69952312512447, -2.69952312512447],
+         'searchE': [False, False]},
+        {'l': 2, 'matchingOrder': [0, 1], 'trialEnergy': [0.0, 0.0], 'searchE': [False, False]},
+        {'l': 2, 'matchingOrder': [1, 2], 'trialEnergy': [0.0, 0.0], 'searchE': [False, False]},
+        {'l': 3, 'matchingOrder': [0, 1], 'trialEnergy': [1.0, 1.0], 'searchE': [False, False]},
+        {'l': 3, 'matchingOrder': [1, 2], 'trialEnergy': [1.0, 1.0], 'searchE': [False, False]},
+        {'l': 4, 'matchingOrder': [0, 1], 'trialEnergy': [1.0, 1.0], 'searchE': [False, False]},
+        {'l': 4, 'matchingOrder': [1, 2], 'trialEnergy': [1.0, 1.0], 'searchE': [False, False]},
+        {'l': 5, 'matchingOrder': [0, 1], 'trialEnergy': [1.0, 1.0], 'searchE': [False, False]},
+        {'l': 5, 'matchingOrder': [1, 2], 'trialEnergy': [1.0, 1.0], 'searchE': [False, False]}]
+
+    max_nodes = max_nodes_per_conduction_orbital(lo_basis_ti)
+
+    l_channels = {2, 3, 4, 5}
+    assert set(max_nodes) == l_channels
+
+    # max nodes per pure conduction channel
+    assert max_nodes[2] == 0, "Functions 3d and 4d with 0 and 1 nodes, respectively"
+    assert max_nodes[3] == 0, "Functions 4f and 5f with 0 and 1 nodes, respectively"
+    assert max_nodes[4] == 0, "Functions 5g and 6g with 0 and 1 nodes, respectively"
+    assert max_nodes[5] == 0, "Functions 7h and 8h with 0 and 1 nodes, respectively"
+
+
+def test_max_nodes_per_orbital_channel():
+    ground_state_basis_ti = parse_species_xml(species_str)
+    max_nodes = max_nodes_per_orbital_channel(ground_state_basis_ti)
+
+    assert max_nodes == {0: 3, 1: 1, 2: 0, 3: 0, 4: 0, 5: 0}
+
+
+def test_filter_lowest_lo_recommendations():
+    # From (n_nodes + l + 1), LOs present in basis = 4s 3p 3d 4f 5g 6h
+    max_nodes = {0: 3,
+                 1: 1,
+                 2: 0,
+                 3: 0,
+                 4: 0,
+                 5: 0}
+
+    message = """
+    As the valence/conduction is (4s, 3p, 3d) (4f 5g 6h), I expect to get recommendations starting from
+    (5s, 4p, 4d) (5f 6g 7h) -> nodes/indices = (4, 2, 1, 1, 1, 1)
+    """
+    # Essentially, this routine is now trivial.
+    indices = filter_lowest_lo_recommendations(max_nodes)
+    assert (indices == [4, 2, 1, 1, 1, 1]).all(), message
+
+
+def test_application_to_lo_recommendations(tmpdir):
+    indices = np.array([4, 2, 1, 1, 1, 1])
 
     lorec_file = tmpdir / "lorecommendations.txt"
     lorec_file.write(lo_recommendations)
-    recommendations = parse_lorecommendations(str(lorec_file), ['ti', 'o'], l_max=7, node_max=20)
+    recommendations_ti = parse_lorecommendations(str(lorec_file), ['ti', 'o'], l_max=7, node_max=20)['ti']
+    assert recommendations_ti.shape == (8, 21), 'l_max+1, n_nodes+1'
 
-    max_valence_states = np.array([4, 3, 3, 0, 0])
-    assert (max_valence_states == [4, 3, 3, 0, 0]).all(), "max valence: 4s, 3p, 3d"
+    lowest_energies = []
+    for l in range(0, len(indices)):
+        i = indices[l]
+        lowest_energies.append(recommendations_ti[l, i])
 
-    # Mapping in lo-recommendations from nodes (used as index) to nl
-    # nodes (index)
-    #       0        1s  2p  3d
-    #       1        2s  3p  4d
-    #       2        3s  4p  5d
-    #       3        4s  5p  6d
-    #       4        5s  6p  7d
-
-    # As the valence is (4s, 3p, 3d), I expect to get recommendations starting from
-    # (5s, 4p, 4d) -> nodes/indices = (4, 2, 1)
-    indices = filter_lowest_lo_recommendations(max_valence_states)
-    assert (indices == [4, 2, 1, 0, 0]).all()
-
-    # TODO(Alex
-    # Also check that the corresponding energy recommendations make sense =>
-    # need lo recommendations for TiO2 here
-    # Use the terminal output from /users/sol/abuccheri/wp2/tio2/for_python_lo
+    assert lowest_energies == [12.9176469892837, 4.05064453003636, 4.58295441473611,
+                               10.014835866122, 14.8600135756357, 19.7520553049321]
 
 
 def test_filter_highest_lo_recommendations(tmpdir):
-    energy_cutoff = {0: 150}
-
-    lorec_file = tmpdir / "lorecommendations.txt"
-    lorec_file.write(lo_recommendations)
     # Would be better to retrieve this from the file
     l_max = 7
     node_max = 20
 
-    recommendations = parse_lorecommendations(str(lorec_file), ['ti', 'o'], l_max=l_max, node_max=node_max)
-    recommendations_ti = recommendations['ti']
-    assert recommendations['ti'].shape == (l_max + 1, node_max + 1)
+    lorec_file = tmpdir / "lorecommendations.txt"
+    lorec_file.write(lo_recommendations)
+    recommendations_ti = parse_lorecommendations(str(lorec_file), ['ti', 'o'], l_max=7, node_max=20)['ti']
+    assert recommendations_ti.shape == (l_max + 1, node_max + 1)
+
+    energy_cutoff = {0: 150}
 
     indices = filter_highest_lo_recommendations(energy_cutoff, recommendations_ti)
     assert len(indices) == l_max + 1
-    assert (indices == [11, 21, 21, 21, 21, 21, 21, 21]).all()
+    assert (indices == [11, 0, 0, 0, 0, 0, 0, 0]).all(), "Only cut off the l=0 channel"
 
+    # Returns index or i+1 th value, such that recommendations_ti[l][:indices[l]] returns
+    # up to and including the cut-off
     l_value = 0
-    assert recommendations_ti[l_value][indices[l_value]] <= energy_cutoff[l_value]
-    assert recommendations_ti[l_value][indices[l_value]+1] > energy_cutoff[l_value]
+    refined_recommendations = recommendations_ti[l_value][:indices[l_value]]
+    assert refined_recommendations[-1] <= energy_cutoff[l_value], "Demonstrating HOW to use the indices"
+    assert recommendations_ti[l_value][indices[l_value]] > energy_cutoff[
+        l_value], "Demonstrating how NOT to use the indices"
 
-    # TODO Test for l that are not specified, max number of elements is taken
-
-
-
-# def test_construct_optimised_basis(tmpdir):
-#
-#     default_basis_ti = parse_species_xml(species_str)
-#
-#     # Only specify for the first l-channel. The rest are left alone
-#     energy_cutoff_ti = {0: 150}
-#
-#
-#
-#     # optimised_basis = construct_optimised_basis(default_basis_ti, recommendations_ti, energy_cutoff_ti)
-#
-#
+    # TODO(Alex) Perhaps np.nan would be better
+    l_value = 1
+    refined_recommendations = recommendations_ti[l_value][:indices[l_value]]
+    assert not refined_recommendations.any(), "If an l-channel cutoff is not defined, 0 is returned" \
+                                              "so do not use the index"
 
 
+def test_construct_optimised_basis(tmpdir):
+    """ Construct an optimised basis for Ti (from TiO2).
+    """
+    # Ground state basis
+    default_basis_ti = parse_species_xml(species_str)
+
+    # LO recommendations for Ti
+    lorec_file = tmpdir / "lorecommendations.txt"
+    lorec_file.write(lo_recommendations)
+    l_max = 7
+    node_max = 20
+    recommendations = parse_lorecommendations(str(lorec_file), ['ti', 'o'], l_max=l_max, node_max=node_max)
+    recommendations_ti = recommendations['ti']
+
+    # LO cut-off, for l-channels 0, 1 and 2
+    energy_cutoff_ti = {0: 150, 1: 120, 2: 80}
+
+    optimised_basis: dict = construct_optimised_basis(default_basis_ti, recommendations_ti, l_max, energy_cutoff_ti)
+
+    reference = [
+        {'l': 0, 'matchingOrder': [0, 1], 'trialEnergy': [-4.37848525995355, -4.37848525995355],
+         'searchE': [False, False]},
+        {'l': 0, 'matchingOrder': [0, 1], 'trialEnergy': [1.35670550183736, 1.35670550183736],
+         'searchE': [False, False]},
+        {'l': 0, 'matchingOrder': [0, 0], 'trialEnergy': [1.35670550183736, -4.37848525995355],
+         'searchE': [False, False]},
+        {'l': 0, 'matchingOrder': [1, 2], 'trialEnergy': [1.35670550183736, 1.35670550183736],
+         'searchE': [False, False]},
+        {'l': 0, 'matchingOrder': [0, 1], 'trialEnergy': [12.9176469892837, 12.9176469892837],
+         'searchE': [False, False]},
+        {'l': 0, 'matchingOrder': [1, 2], 'trialEnergy': [12.9176469892837, 12.9176469892837],
+         'searchE': [False, False]},
+        {'l': 0, 'matchingOrder': [0, 1], 'trialEnergy': [26.1778761935082, 26.1778761935082],
+         'searchE': [False, False]},
+        {'l': 0, 'matchingOrder': [1, 2], 'trialEnergy': [26.1778761935082, 26.1778761935082],
+         'searchE': [False, False]},
+        {'l': 0, 'matchingOrder': [0, 1], 'trialEnergy': [42.947252809507, 42.947252809507], 'searchE': [False, False]},
+        {'l': 0, 'matchingOrder': [1, 2], 'trialEnergy': [42.947252809507, 42.947252809507], 'searchE': [False, False]},
+        {'l': 0, 'matchingOrder': [0, 1], 'trialEnergy': [63.096841739398, 63.096841739398], 'searchE': [False, False]},
+        {'l': 0, 'matchingOrder': [1, 2], 'trialEnergy': [63.096841739398, 63.096841739398], 'searchE': [False, False]},
+        {'l': 0, 'matchingOrder': [0, 1], 'trialEnergy': [86.5450984374082, 86.5450984374082],
+         'searchE': [False, False]},
+        {'l': 0, 'matchingOrder': [1, 2], 'trialEnergy': [86.5450984374082, 86.5450984374082],
+         'searchE': [False, False]},
+        {'l': 0, 'matchingOrder': [0, 1], 'trialEnergy': [113.228758144247, 113.228758144247],
+         'searchE': [False, False]},
+        {'l': 0, 'matchingOrder': [1, 2], 'trialEnergy': [113.228758144247, 113.228758144247],
+         'searchE': [False, False]},
+        {'l': 0, 'matchingOrder': [0, 1], 'trialEnergy': [143.109614979104, 143.109614979104],
+         'searchE': [False, False]},
+        {'l': 0, 'matchingOrder': [1, 2], 'trialEnergy': [143.109614979104, 143.109614979104],
+         'searchE': [False, False]},
+        {'l': 1, 'matchingOrder': [0, 1], 'trialEnergy': [-2.69952312512447, -2.69952312512447],
+         'searchE': [False, False]},
+        {'l': 1, 'matchingOrder': [1, 2], 'trialEnergy': [-2.69952312512447, -2.69952312512447],
+         'searchE': [False, False]},
+        {'l': 1, 'matchingOrder': [0, 1], 'trialEnergy': [4.05064453003636, 4.05064453003636],
+         'searchE': [False, False]},
+        {'l': 1, 'matchingOrder': [1, 2], 'trialEnergy': [4.05064453003636, 4.05064453003636],
+         'searchE': [False, False]},
+        {'l': 1, 'matchingOrder': [0, 1], 'trialEnergy': [13.0713956122497, 13.0713956122497],
+         'searchE': [False, False]},
+        {'l': 1, 'matchingOrder': [1, 2], 'trialEnergy': [13.0713956122497, 13.0713956122497],
+         'searchE': [False, False]},
+        {'l': 1, 'matchingOrder': [0, 1], 'trialEnergy': [25.6716499475157, 25.6716499475157],
+         'searchE': [False, False]},
+        {'l': 1, 'matchingOrder': [1, 2], 'trialEnergy': [25.6716499475157, 25.6716499475157],
+         'searchE': [False, False]},
+        {'l': 1, 'matchingOrder': [0, 1], 'trialEnergy': [41.6170180964515, 41.6170180964515],
+         'searchE': [False, False]},
+        {'l': 1, 'matchingOrder': [1, 2], 'trialEnergy': [41.6170180964515, 41.6170180964515],
+         'searchE': [False, False]},
+        {'l': 1, 'matchingOrder': [0, 1], 'trialEnergy': [60.8160619242497, 60.8160619242497],
+         'searchE': [False, False]},
+        {'l': 1, 'matchingOrder': [1, 2], 'trialEnergy': [60.8160619242497, 60.8160619242497],
+         'searchE': [False, False]},
+        {'l': 1, 'matchingOrder': [0, 1], 'trialEnergy': [83.2059799685343, 83.2059799685343],
+         'searchE': [False, False]},
+        {'l': 1, 'matchingOrder': [1, 2], 'trialEnergy': [83.2059799685343, 83.2059799685343],
+         'searchE': [False, False]},
+        {'l': 1, 'matchingOrder': [0, 1], 'trialEnergy': [108.745073489527, 108.745073489527],
+         'searchE': [False, False]},
+        {'l': 1, 'matchingOrder': [1, 2], 'trialEnergy': [108.745073489527, 108.745073489527],
+         'searchE': [False, False]},
+        {'l': 2, 'matchingOrder': [0, 1], 'trialEnergy': [0.0, 0.0], 'searchE': [False, False]},
+        {'l': 2, 'matchingOrder': [1, 2], 'trialEnergy': [0.0, 0.0], 'searchE': [False, False]},
+        {'l': 2, 'matchingOrder': [0, 1], 'trialEnergy': [4.58295441473611, 4.58295441473611],
+         'searchE': [False, False]},
+        {'l': 2, 'matchingOrder': [1, 2], 'trialEnergy': [4.58295441473611, 4.58295441473611],
+         'searchE': [False, False]},
+        {'l': 2, 'matchingOrder': [0, 1], 'trialEnergy': [12.4039296587687, 12.4039296587687],
+         'searchE': [False, False]},
+        {'l': 2, 'matchingOrder': [1, 2], 'trialEnergy': [12.4039296587687, 12.4039296587687],
+         'searchE': [False, False]},
+        {'l': 2, 'matchingOrder': [0, 1], 'trialEnergy': [23.6106241836797, 23.6106241836797],
+         'searchE': [False, False]},
+        {'l': 2, 'matchingOrder': [1, 2], 'trialEnergy': [23.6106241836797, 23.6106241836797],
+         'searchE': [False, False]},
+        {'l': 2, 'matchingOrder': [0, 1], 'trialEnergy': [38.1112945017348, 38.1112945017348],
+         'searchE': [False, False]},
+        {'l': 2, 'matchingOrder': [1, 2], 'trialEnergy': [38.1112945017348, 38.1112945017348],
+         'searchE': [False, False]},
+        {'l': 2, 'matchingOrder': [0, 1], 'trialEnergy': [55.8297495749646, 55.8297495749646],
+         'searchE': [False, False]},
+        {'l': 2, 'matchingOrder': [1, 2], 'trialEnergy': [55.8297495749646, 55.8297495749646],
+         'searchE': [False, False]},
+        {'l': 2, 'matchingOrder': [0, 1], 'trialEnergy': [76.7132045452432, 76.7132045452432],
+         'searchE': [False, False]},
+        {'l': 2, 'matchingOrder': [1, 2], 'trialEnergy': [76.7132045452432, 76.7132045452432],
+         'searchE': [False, False]},
+        {'l': 3, 'matchingOrder': [0, 1], 'trialEnergy': [1.0, 1.0], 'searchE': [False, False]},
+        {'l': 3, 'matchingOrder': [1, 2], 'trialEnergy': [1.0, 1.0], 'searchE': [False, False]},
+        {'l': 4, 'matchingOrder': [0, 1], 'trialEnergy': [1.0, 1.0], 'searchE': [False, False]},
+        {'l': 4, 'matchingOrder': [1, 2], 'trialEnergy': [1.0, 1.0], 'searchE': [False, False]},
+        {'l': 5, 'matchingOrder': [0, 1], 'trialEnergy': [1.0, 1.0], 'searchE': [False, False]},
+        {'l': 5, 'matchingOrder': [1, 2], 'trialEnergy': [1.0, 1.0], 'searchE': [False, False]}]
+
+    assert optimised_basis['basis']['lo'] == reference
 
 
 # Mocked inputs
@@ -185,377 +371,377 @@ species_str = """<?xml version="1.0" encoding="utf-8"?>
 </spdb>
 """
 
-# This is actually from Zr and O, but doesn't matter
-lo_recommendations = """Energy parameters
+# For TiO2 computed with rgkmax = 8.0, ngridk="4 4 4" and RMT (Ti, O) = (1.80, 1.50)
+lo_recommendations = """ Energy parameters
  ------------
  species           1
  l=           0
- n=           0  -667.991409275491     
- n=           1  -379.240253369951     
- n=           2  -14.2874442969234     
- n=           3  -1.38217813307027     
- n=           4   3.42536744493380     
- n=           5   11.8660719836892     
- n=           6   23.5636119957248     
- n=           7   38.2306288649451     
- n=           8   55.7263665351973     
- n=           9   75.9709788864888     
- n=          10   98.9139500066572     
- n=          11   124.514514588677     
- n=          12   152.743832883020     
- n=          13   183.579690781518     
- n=          14   217.003531335318     
- n=          15   253.000883235486     
- n=          16   291.559525401789     
- n=          17   332.669055583656     
- n=          18   376.320594999116     
- n=          19   422.506316266407     
- n=          20   471.219353640417     
-
+ n=           0  -259.369188082763     
+ n=           1  -19.3034231232313     
+ n=           2  -1.82516041130036     
+ n=           3   3.49036592294616     
+ n=           4   12.9176469892837     
+ n=           5   26.1778761935082     
+ n=           6   42.9472528095070     
+ n=           7   63.0968417393980     
+ n=           8   86.5450984374082     
+ n=           9   113.228758144247     
+ n=          10   143.109614979104     
+ n=          11   176.165025006327     
+ n=          12   212.371637815201     
+ n=          13   251.708976162372     
+ n=          14   294.165047633081     
+ n=          15   339.730301333293     
+ n=          16   388.394593224781     
+ n=          17   440.150370786348     
+ n=          18   494.992403716618     
+ n=          19   552.915577327171     
+ n=          20   613.915369774928     
+ 
  l=           1
- n=           0  -80.6288970845078     
- n=           1  -11.0903296755164     
- n=           2 -0.501589892294286     
- n=           3   4.26159803522064     
- n=           4   12.6765809910205     
- n=           5   24.1864348726792     
- n=           6   38.5622091557403     
- n=           7   55.6807569234608     
- n=           8   75.4735019827357     
- n=           9   97.8980259059199     
- n=          10   122.919966498227     
- n=          11   150.516651759929     
- n=          12   180.670780115227     
- n=          13   213.368376374010     
- n=          14   248.599071833936     
- n=          15   286.354093985085     
- n=          16   326.626195334648     
- n=          17   369.409303460139     
- n=          18   414.698205295194     
- n=          19   462.488553388670     
- n=          20   512.776715139228     
-
+ n=           0  -15.9036026797939     
+ n=           1 -0.916594422041659     
+ n=           2   4.05064453003636     
+ n=           3   13.0713956122497     
+ n=           4   25.6716499475157     
+ n=           5   41.6170180964515     
+ n=           6   60.8160619242497     
+ n=           7   83.2059799685343     
+ n=           8   108.745073489527     
+ n=           9   137.418378471044     
+ n=          10   169.214173057501     
+ n=          11   204.115782614501     
+ n=          12   242.114135788504     
+ n=          13   283.205380937343     
+ n=          14   327.382797301318     
+ n=          15   374.640297242177     
+ n=          16   424.974879064549     
+ n=          17   478.383337710301     
+ n=          18   534.862055554789     
+ n=          19   594.408560312595     
+ n=          20   657.020794765786     
+ 
  l=           2
- n=           0  -5.84500670493726     
- n=           1  0.914547790113852     
- n=           2   5.64059751661934     
- n=           3   13.6826879756866     
- n=           4   24.5520764081153     
- n=           5   38.1279117157817     
- n=           6   54.3361196568741     
- n=           7   73.1447106535396     
- n=           8   94.5327917111786     
- n=           9   118.481063037598     
- n=          10   144.977912195015     
- n=          11   174.011967814267     
- n=          12   205.574098879777     
- n=          13   239.656984734903     
- n=          14   276.254028107871     
- n=          15   315.360043618080     
- n=          16   356.970704153000     
- n=          17   401.082480089301     
- n=          18   447.692451905333     
- n=          19   496.798038377992     
- n=          20   548.396871315060     
-
+ n=           0  0.503036444916332     
+ n=           1   4.58295441473611     
+ n=           2   12.4039296587687     
+ n=           3   23.6106241836797     
+ n=           4   38.1112945017348     
+ n=           5   55.8297495749646     
+ n=           6   76.7132045452432     
+ n=           7   100.746323777240     
+ n=           8   127.917770423832     
+ n=           9   158.205335887679     
+ n=          10   191.596864321575     
+ n=          11   228.088577312084     
+ n=          12   267.671847836793     
+ n=          13   310.338729992569     
+ n=          14   356.086278883842     
+ n=          15   404.911058498023     
+ n=          16   456.808740116681     
+ n=          17   511.776805758468     
+ n=          18   569.813298034584     
+ n=          19   630.915841336001     
+ n=          20   695.082556015792     
+ 
  l=           3
- n=           0   2.36543561629785     
- n=           1   6.65613297203595     
- n=           2   13.6859941886813     
- n=           3   23.4200580684237     
- n=           4   35.8130236114344     
- n=           5   50.8218822062476     
- n=           6   68.4323085048091     
- n=           7   88.6180461427449     
- n=           8   111.361136021387     
- n=           9   136.649045070290     
- n=          10   164.470347048785     
- n=          11   194.818035990892     
- n=          12   227.685641107760     
- n=          13   263.067948898846     
- n=          14   300.960513772017     
- n=          15   341.359086043891     
- n=          16   384.259846353525     
- n=          17   429.659229054574     
- n=          18   477.554065232093     
- n=          19   527.941644901146     
- n=          20   580.819713791749     
-
+ n=           0   3.62239944277359     
+ n=           1   10.0148358661220     
+ n=           2   19.7679227638865     
+ n=           3   32.7749704857271     
+ n=           4   48.9795005294507     
+ n=           5   68.3672361013944     
+ n=           6   90.9104504725290     
+ n=           7   116.575874130065     
+ n=           8   145.353675720780     
+ n=           9   177.241232724529     
+ n=          10   212.226132813998     
+ n=          11   250.299578163230     
+ n=          12   291.459518761812     
+ n=          13   335.701095551504     
+ n=          14   383.018503665349     
+ n=          15   433.409118053102     
+ n=          16   486.870556523134     
+ n=          17   543.399661471325     
+ n=          18   602.994273288022     
+ n=          19   665.652805860171     
+ n=          20   731.373487195129     
+ 
  l=           4
- n=           0   4.78327933801762     
- n=           1   11.1861394342653     
- n=           2   20.0549805610878     
- n=           3   31.4459143751536     
- n=           4   45.3932929111412     
- n=           5   61.8882775137132     
- n=           6   80.9243008810288     
- n=           7   102.502997236370     
- n=           8   126.615811828389     
- n=           9   153.256653605462     
- n=          10   182.418644353986     
- n=          11   214.095196547124     
- n=          12   248.281585578559     
- n=          13   284.973444242109     
- n=          14   324.167445305596     
- n=          15   365.860836088012     
- n=          16   410.051215463591     
- n=          17   456.736441304005     
- n=          18   505.914410791083     
- n=          19   557.583049904892     
- n=          20   611.740322451597     
-
+ n=           0   6.31739245209088     
+ n=           1   14.8600135756357     
+ n=           2   26.4849482058817     
+ n=           3   41.2788452338538     
+ n=           4   59.2074468430280     
+ n=           5   80.2608665274760     
+ n=           6   104.443414687192     
+ n=           7   131.742382030324     
+ n=           8   162.137244542013     
+ n=           9   195.623026175066     
+ n=          10   232.199294647865     
+ n=          11   271.858354584544     
+ n=          12   314.594538999903     
+ n=          13   360.406815182199     
+ n=          14   409.292313604271     
+ n=          15   461.247201312456     
+ n=          16   516.269572586634     
+ n=          17   574.357747868165     
+ n=          18   635.509497908624     
+ n=          19   699.723150838476     
+ n=          20   766.997415944937     
+ 
  l=           5
- n=           0   7.19867764015665     
- n=           1   15.3621191123735     
- n=           2   25.8533071405062     
- n=           3   38.8031977822050     
- n=           4   54.2473517043863     
- n=           5   72.2045259377250     
- n=           6   92.6679005431248     
- n=           7   115.640428494746     
- n=           8   141.124034678391     
- n=           9   169.116569806891     
- n=          10   199.616853136762     
- n=          11   232.621614334552     
- n=          12   268.127679027327     
- n=          13   306.132119030021     
- n=          14   346.632055889954     
- n=          15   389.625130038242     
- n=          16   435.109311370510     
- n=          17   483.082945501847     
- n=          18   533.544669923608     
- n=          19   586.493284420762     
- n=          20   641.927651862646     
-
+ n=           0   9.20446124429451     
+ n=           1   19.7520553049321     
+ n=           2   33.1720095758415     
+ n=           3   49.6929498889539     
+ n=           4   69.3171738083830     
+ n=           5   92.0318503739110     
+ n=           6   117.840278508168     
+ n=           7   146.750243005582     
+ n=           8   178.753137678429     
+ n=           9   213.836002740462     
+ n=          10   251.997089627681     
+ n=          11   293.236304503786     
+ n=          12   337.548316983287     
+ n=          13   384.929545599425     
+ n=          14   435.379430265364     
+ n=          15   488.896076029643     
+ n=          16   545.476976587385     
+ n=          17   605.120838096024     
+ n=          18   667.826466940541     
+ n=          19   733.592314310617     
+ n=          20   802.417170704447     
+ 
  l=           6
- n=           0   9.81038533179485     
- n=           1   19.6216060829818     
- n=           2   31.6227640307153     
- n=           3   46.0466116501745     
- n=           4   62.9275371080336     
- n=           5   82.2950688416822     
- n=           6   104.153660504068     
- n=           7   128.501360483987     
- n=           8   155.342520287142     
- n=           9   184.677822264788     
- n=          10   216.507751178548     
- n=          11   250.832405280892     
- n=          12   287.650469242525     
- n=          13   326.960599467696     
- n=          14   368.761122718885     
- n=          15   413.050297246437     
- n=          16   459.826489472715     
- n=          17   509.088174131056     
- n=          18   560.834044276091     
- n=          19   615.063010413319     
- n=          20   671.774187893929     
-
+ n=           0   12.3770850953162     
+ n=           1   24.8730696981051     
+ n=           2   40.0477889015186     
+ n=           3   58.2584368201336     
+ n=           4   79.5454525306208     
+ n=           5   103.906223444436     
+ n=           6   131.336929449987     
+ n=           7   161.846200669672     
+ n=           8   195.440607558900     
+ n=           9   232.112942291757     
+ n=          10   271.855304080245     
+ n=          11   314.667774771156     
+ n=          12   360.550069840482     
+ n=          13   409.498315311272     
+ n=          14   461.510295417779     
+ n=          15   516.585639707090     
+ n=          16   574.722962732585     
+ n=          17   635.920600568705     
+ n=          18   700.177671111939     
+ n=          19   767.493296109274     
+ n=          20   837.866390218539     
+ 
  l=           7
- n=           0   12.6624776697611     
- n=           1   24.0802985211897     
- n=           2   37.5388355337391     
- n=           3   53.3853157981699     
- n=           4   71.6647744403418     
- n=           5   92.4070922867511     
- n=           6   115.628862474925     
- n=           7   141.329587462520     
- n=           8   169.511522400961     
- n=           9   200.177408305896     
- n=          10   233.327910302679     
- n=          11   268.964323270499     
- n=          12   307.086991656717     
- n=          13   347.695645832420     
- n=          14   390.789800448397     
- n=          15   436.368601791598     
- n=          16   484.431079085582     
- n=          17   534.976180609759     
- n=          18   588.002837007884     
- n=          19   643.510037452071     
- n=          20   701.496871736980     
-
+ n=           0   15.8641422436787     
+ n=           1   30.2902093404854     
+ n=           2   47.2007036798467     
+ n=           3   67.0826308545680     
+ n=           4   90.0109786527877     
+ n=           5   115.999858477713     
+ n=           6   145.046716459017     
+ n=           7   177.153451309478     
+ n=           8   212.330238361273     
+ n=           9   250.581060750811     
+ n=          10   291.899809317721     
+ n=          11   336.282140792353     
+ n=          12   383.728964173645     
+ n=          13   434.239726980987     
+ n=          14   487.811619727578     
+ n=          15   544.443323602092     
+ n=          16   604.134530526312     
+ n=          17   666.884172870597     
+ n=          18   732.691129128751     
+ n=          19   801.554779200506     
+ n=          20   873.474453489839     
+ 
  species           2
  l=           0
- n=           0  -18.1330196840195     
- n=           1 -3.218920876138445E-002
- n=           2   5.81819501510778     
- n=           3   16.7150196872253     
- n=           4   31.9344551391894     
- n=           5   51.2561454695178     
- n=           6   74.5920412870563     
- n=           7   101.891889865373     
- n=           8   133.120968999725     
- n=           9   168.260906693085     
- n=          10   207.302968033433     
- n=          11   250.238963404836     
- n=          12   297.060844282271     
- n=          13   347.763393463586     
- n=          14   402.343419996870     
- n=          15   460.797943587475     
- n=          16   523.124161766010     
- n=          17   589.319926813159     
- n=          18   659.383565780216     
- n=          19   733.313588888199     
- n=          20   811.108682051687     
-
+ n=           0  -18.2591047939371     
+ n=           1 -5.534299085382377E-002
+ n=           2   6.76993107010801     
+ n=           3   19.3008058710191     
+ n=           4   36.7095261886706     
+ n=           5   58.7646459628864     
+ n=           6   85.3738258731782     
+ n=           7   116.480467640519     
+ n=           8   152.049558727031     
+ n=           9   192.065572776831     
+ n=          10   236.518429856541     
+ n=          11   285.397340561776     
+ n=          12   338.694502266150     
+ n=          13   396.405479099324     
+ n=          14   458.526461055309     
+ n=          15   525.053814113973     
+ n=          16   595.984767400710     
+ n=          17   671.317185235181     
+ n=          18   751.049177053000     
+ n=          19   835.179105636313     
+ n=          20   923.705603066417     
+ 
  l=           1
- n=           0  0.542669465536126     
- n=           1   5.30731652299547     
- n=           2   14.5900278687783     
- n=           3   28.0005216968489     
- n=           4   45.4547850173366     
- n=           5   66.8925110265213     
- n=           6   92.2699293853404     
- n=           7   121.567853598202     
- n=           8   154.778194692793     
- n=           9   191.889969147828     
- n=          10   232.892462132675     
- n=          11   277.780162162419     
- n=          12   326.549840165138     
- n=          13   379.197603598480     
- n=          14   435.719828550415     
- n=          15   496.114068842998     
- n=          16   560.378428122440     
- n=          17   628.511089551570     
- n=          18   700.510463959042     
- n=          19   776.375261225560     
- n=          20   856.104368533369     
-
+ n=           0  0.500499737249399     
+ n=           1   6.00417947392677     
+ n=           2   16.6244902325676     
+ n=           3   31.9390492371309     
+ n=           4   51.8487657000116     
+ n=           5   76.2802837022488     
+ n=           6   105.188456670102     
+ n=           7   138.557350300250     
+ n=           8   176.375329301630     
+ n=           9   218.627309041331     
+ n=          10   265.303650448348     
+ n=          11   316.399828323890     
+ n=          12   371.911054284842     
+ n=          13   431.832469784859     
+ n=          14   496.160762878792     
+ n=          15   564.893465013808     
+ n=          16   638.028239236460     
+ n=          17   715.563073574882     
+ n=          18   797.496348336346     
+ n=          19   883.826661649663     
+ n=          20   974.552773294797     
+ 
  l=           2
- n=           0   3.54162855263558     
- n=           1   10.8404977381366     
- n=           2   22.3015353377704     
- n=           3   37.7990822058518     
- n=           4   57.2724512463783     
- n=           5   80.7017901676931     
- n=           6   108.067145356573     
- n=           7   139.344804293818     
- n=           8   174.521000462290     
- n=           9   213.591145984513     
- n=          10   256.550216578245     
- n=          11   303.391601611005     
- n=          12   354.110814115493     
- n=          13   408.705428235619     
- n=          14   467.173108282615     
- n=          15   529.511428428567     
- n=          16   595.718489082444     
- n=          17   665.792835922274     
- n=          18   739.733156308282     
- n=          19   817.538262233150     
- n=          20   899.207143140850     
-
+ n=           0   3.83945446883056     
+ n=           1   12.1939562032803     
+ n=           2   25.2842194468834     
+ n=           3   42.9575431122334     
+ n=           4   65.1545264514181     
+ n=           5   91.8523535842225     
+ n=           6   123.021685608380     
+ n=           7   158.636452273438     
+ n=           8   198.686443684450     
+ n=           9   243.166259939108     
+ n=          10   292.067590042401     
+ n=          11   345.383667205643     
+ n=          12   403.110997321794     
+ n=          13   465.246610797274     
+ n=          14   531.787367941305     
+ n=          15   602.730809647179     
+ n=          16   678.075070812743     
+ n=          17   757.818471441704     
+ n=          18   841.959522373783     
+ n=          19   930.496970122767     
+ n=          20   1023.42972546073     
+ 
  l=           3
- n=           0   6.31529232771970     
- n=           1   16.0396598388704     
- n=           2   29.6597498389934     
- n=           3   47.2461462642027     
- n=           4   68.7641250874585     
- n=           5   94.1978095073063     
- n=           6   123.544796683252     
- n=           7   156.798433080553     
- n=           8   193.946020150045     
- n=           9   234.978779534882     
- n=          10   279.893759287586     
- n=          11   328.688396034657     
- n=          12   381.358780668718     
- n=          13   437.901713844410     
- n=          14   498.315297622637     
- n=          15   562.597945658439     
- n=          16   630.748028273493     
- n=          17   702.764152164392     
- n=          18   778.645205340205     
- n=          19   858.390209926669     
- n=          20   941.998278051366     
-
+ n=           0   6.98848256944531     
+ n=           1   18.0747793354204     
+ n=           2   33.6102477594338     
+ n=           3   53.6519090661656     
+ n=           4   78.1624370648352     
+ n=           5   107.130413072972     
+ n=           6   140.552426428783     
+ n=           7   178.414973888309     
+ n=           8   220.703412296845     
+ n=           9   267.411709904519     
+ n=          10   318.536956197423     
+ n=          11   374.074380951663     
+ n=          12   434.019572346479     
+ n=          13   498.369939668691     
+ n=          14   567.123429770478     
+ n=          15   640.277951917003     
+ n=          16   717.831747806278     
+ n=          17   799.783420074093     
+ n=          18   886.131731213631     
+ n=          19   976.875577059800     
+ n=          20   1072.01400141206     
+ 
  l=           4
- n=           0   9.40911270698223     
- n=           1   21.4662749969230     
- n=           2   37.2061516926422     
- n=           3   56.8499191380597     
- n=           4   80.3990863396830     
- n=           5   107.841273276560     
- n=           6   139.172875715499     
- n=           7   174.396177780324     
- n=           8   213.508934297378     
- n=           9   256.503894271916     
- n=          10   303.375524397416     
- n=          11   354.121859762977     
- n=          12   408.741432510570     
- n=          13   467.231883414338     
- n=          14   529.591030940959     
- n=          15   595.817428265865     
- n=          16   665.909916335067     
- n=          17   739.867350981294     
- n=          18   817.688711795101     
- n=          19   899.373147745203     
- n=          20   984.919911144370     
-
+ n=           0   10.5079862441597     
+ n=           1   24.2341071131867     
+ n=           2   42.1715722650949     
+ n=           3   64.5499641069724     
+ n=           4   91.3664953582778     
+ n=           5   122.610336954317     
+ n=           6   158.282514342210     
+ n=           7   198.384268179873     
+ n=           8   242.908248735095     
+ n=           9   291.845949222348     
+ n=          10   345.193857389491     
+ n=          11   402.950233914381     
+ n=          12   465.112186519857     
+ n=          13   531.676864094118     
+ n=          14   602.642394321105     
+ n=          15   678.007287409829     
+ n=          16   757.770085311167     
+ n=          17   841.929519215749     
+ n=          18   930.484536347643     
+ n=          19   1023.43420413396     
+ n=          20   1120.77768735372     
+ 
  l=           5
- n=           0   12.9021323357210     
- n=           1   27.2691844769492     
- n=           2   45.1132842352017     
- n=           3   66.7981838475503     
- n=           4   92.3624172048559     
- n=           5   121.806101538993     
- n=           6   155.124728866751     
- n=           7   192.319294106022     
- n=           8   233.393235116861     
- n=           9   278.345922351180     
- n=          10   327.173035752640     
- n=          11   379.871089566801     
- n=          12   436.438775576574     
- n=          13   496.875180278980     
- n=          14   561.178840212644     
- n=          15   629.348290311170     
- n=          16   701.382459633356     
- n=          17   777.280480522399     
- n=          18   857.041522434139     
- n=          19   940.664828944823     
- n=          20   1028.14974749840     
-
+ n=           0   14.4830431697300     
+ n=           1   30.8291872130391     
+ n=           2   51.1527964656132     
+ n=           3   75.8495711892589     
+ n=           4   104.957254611350     
+ n=           5   138.474612296734     
+ n=           6   176.400302745340     
+ n=           7   218.739126356488     
+ n=           8   265.493126135740     
+ n=           9   316.657900876879     
+ n=          10   372.228449696562     
+ n=          11   432.202751558381     
+ n=          12   496.579707867895     
+ n=          13   565.357499556312     
+ n=          14   638.534278705924     
+ n=          15   716.108715054758     
+ n=          16   798.079713269793     
+ n=          17   884.446226110917     
+ n=          18   975.207325043735     
+ n=          19   1070.36221245948     
+ n=          20   1169.91017394726     
+ 
  l=           6
- n=           0   16.8161347573648     
- n=           1   33.4995416315504     
- n=           2   53.4462459347742     
- n=           3   77.1684283376427     
- n=           4   104.739942782253     
- n=           5   136.176990505111     
- n=           6   171.480131181057     
- n=           7   210.648572240789     
- n=           8   253.685176067296     
- n=           9   300.593397437316     
- n=          10   351.373265123331     
- n=          11   406.022176556170     
- n=          12   464.537961779861     
- n=          13   526.919768561318     
- n=          14   593.167008757674     
- n=          15   663.278758289362     
- n=          16   737.254041721202     
- n=          17   815.092085730109     
- n=          18   896.792242690137     
- n=          19   982.353899716896     
- n=          20   1071.77649267734     
-
+ n=           0   18.9374137083283     
+ n=           1   37.9141871976703     
+ n=           2   60.6239509995307     
+ n=           3   87.6345520101954     
+ n=           4   119.024600128231     
+ n=           5   154.809339138549     
+ n=           6   194.989656229806     
+ n=           7   239.568461031240     
+ n=           8   288.551302945596     
+ n=           9   341.940035198566     
+ n=          10   399.731966748238     
+ n=          11   461.924208191579     
+ n=          12   528.515636005759     
+ n=          13   599.505551895389     
+ n=          14   674.892798857927     
+ n=          15   754.676181560091     
+ n=          16   838.854769160395     
+ n=          17   927.427760867938     
+ n=          18   1020.39439649781     
+ n=          19   1117.75399124681     
+ n=          20   1219.50593969916     
+ 
  l=           7
- n=           0   21.1582573272429     
- n=           1   40.1780718485853     
- n=           2   62.2334186252010     
- n=           3   87.9956048690115     
- n=           4   117.573659692168     
- n=           5   151.000029762416     
- n=           6   188.283786182454     
- n=           7   229.426046186901     
- n=           8   274.428027535316     
- n=           9   323.293249618008     
- n=          10   376.024832114406     
- n=          11   432.623108773441     
- n=          12   493.086553729868     
- n=          13   557.413859104093     
- n=          14   625.604498663243     
- n=          15   697.658102200973     
- n=          16   773.574087252689     
- n=          17   853.351813824140     
- n=          18   936.990737829732     
- n=          19   1024.49038297874     
- n=          20   1115.85029887173     
-
- ------------"""
+ n=           0   23.8789253115928     
+ n=           1   45.5109632964848     
+ n=           2   70.6152727873199     
+ n=           3   99.9431021745479     
+ n=           4   133.614036585287     
+ n=           5   171.661955073127     
+ n=           6   214.095310941263     
+ n=           7   260.916739097525     
+ n=           8   312.131003894453     
+ n=           9   367.743266887814     
+ n=          10   427.755046970866     
+ n=          11   492.164779170177     
+ n=          12   560.970886524390     
+ n=          13   634.172798234004     
+ n=          14   711.770093818222     
+ n=          15   793.762052479818     
+ n=          16   880.147913049594     
+ n=          17   970.927038634742     
+ n=          18   1066.09885419154     
+ n=          19   1165.66281049308     
+ n=          20   1269.61840446143  
+ 
+ """
