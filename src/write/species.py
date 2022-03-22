@@ -11,7 +11,7 @@ def write_species_file_from_dict(species_dict: dict, file_name: Optional[str] = 
     """
     species_str = species_xml_str_from_dict(species_dict)
     if file_name is None:
-        file_name = species_dict['species']['name'].capitalize() + '.xml'
+        file_name = species_dict['species']['chemicalSymbol'].capitalize() + '.xml'
     with open(file_name, "w") as fid:
         fid.write(species_str)
 
