@@ -152,7 +152,6 @@ def test_filter_highest_lo_recommendations(tmpdir):
     assert recommendations_ti[l_value][indices[l_value]] > energy_cutoff[
         l_value], "Demonstrating how NOT to use the indices"
 
-    # TODO(Alex) Perhaps np.nan would be better
     l_value = 1
     refined_recommendations = recommendations_ti[l_value][:indices[l_value]]
     assert not refined_recommendations.any(), "If an l-channel cutoff is not defined, 0 is returned" \

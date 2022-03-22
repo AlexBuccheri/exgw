@@ -2,7 +2,6 @@
 for use in highly-converged GW calculations.
 """
 import copy
-import warnings
 from typing import List
 import numpy as np
 
@@ -259,7 +258,7 @@ def construct_optimised_basis(default_basis: dict,
     """
     recommendations_l_max, recommendations_node_max = [x - 1 for x in lo_recommendations.shape]
 
-    if recommendations_l_max > l_max:
+    if l_max > recommendations_l_max:
         raise ValueError(f'LO recommendations go up to l={recommendations_l_max}, however'
                          f'l_max requested is {l_max}')
 
