@@ -4,7 +4,7 @@ from typing import Callable, Dict
 import numpy as np
 import xml.etree.ElementTree as ET
 
-from src.utils.utils import str_to_bool, string_to_value
+from exgw.src.utils.utils import str_to_bool, string_to_value
 
 
 def parse_lorecommendations(file_name: str, species: list, l_max=7, node_max=20) -> dict:

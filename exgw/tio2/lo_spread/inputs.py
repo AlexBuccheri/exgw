@@ -13,8 +13,8 @@ from exgw.src.write.species import write_species_file_from_dict
 
 
 # TiO2 specific
-from ground_state_xml import converged_input_xml
-from calculations import *
+from exgw.tio2.lo_spread.ground_state_xml import converged_input_xml
+from exgw.tio2.lo_spread.calculations import *
 
 
 def set_input() -> str:

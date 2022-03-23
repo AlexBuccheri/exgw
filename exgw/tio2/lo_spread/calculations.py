@@ -25,7 +25,7 @@ class Calculation:
 # Specify which cluster to generate a run script for
 cluster = 'dune'
 
-if cluster is 'dune':
+if cluster == 'dune':
     default_env_vars = OrderedDict([('EXE', '/users/sol/abuccheri/exciting/bin/excitingmpismp'),
                                     ('OUT', 'terminal.out')])
     default_module_envs = ['intel/2019']
@@ -38,7 +38,7 @@ if cluster is 'dune':
                                                     cpus_per_task=18,
                                                     hint='nomultithread')
     set_run_script = slurm.set_slurm_script
-elif cluster is 'hawk':
+elif cluster == 'hawk':
     raise NotImplementedError('Need to specify settings for HAWK environment')
 else:
     raise ValueError('Choice of HPC machine is not valid: {}')
