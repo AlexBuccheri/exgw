@@ -7,14 +7,14 @@ import shutil
 from typing import List
 
 # This package
-from src.inputs.gw import GWInput
-from src.parse.parsers import parse_lorecommendations, parse_species_xml
-from src.write.species import write_species_file_from_dict
+from exgw.src.inputs.gw import GWInput
+from exgw.src.parse.parsers import parse_lorecommendations, parse_species_xml
+from exgw.src.write.species import write_species_file_from_dict
 
 
 # TiO2 specific
-from tio2.lo_spread.ground_state_xml import converged_input_xml
-from tio2.lo_spread.calculations import *
+from ground_state_xml import converged_input_xml
+from calculations import *
 
 
 def set_input() -> str:
@@ -76,13 +76,13 @@ def main(root: str, ground_state_path: str, input_xml: str, calculations: List[C
 
 
 if __name__ == "__main__":
-    root = "/Users/alexanderbuccheri/exgw/test/tio2/lo_sweep/"
+    root = "/users/sol/abuccheri/wp2/tio2/gw/losweep"
 
-    ground_state_path = "/Users/alexanderbuccheri/exgw/test/tio2/ground_state"
+    ground_state_path = "/users/sol/abuccheri/wp2/tio2/ground_state"
     default_basis = {}
-    default_basis['ti'] = parse_species_xml("ref/Ti.xml")
-    default_basis['o'] = parse_species_xml("ref/O.xml")
-    lo_recommendations = parse_lorecommendations("ref/lorecommendations.dat", ['ti', 'o'], l_max=7, node_max=20)
+    default_basis['ti'] = parse_species_xml(os.path.join(ground_state_path, "Ti.xml"))
+    default_basis['o'] = parse_species_xml(os.path.join(ground_state_path, "O.xml"))
+    lo_recommendations = parse_lorecommendations(os.path.join(ground_state_path, "lorecommendations.dat"), ['ti', 'o'], l_max=7, node_max=20)
 
     input_xml = set_input()
     calculations = [calc_lmax43_locut20(default_basis, lo_recommendations),

@@ -1,6 +1,6 @@
 """ Test parsers
 """
-from src.parse.parsers import parse_lorecommendations
+from exgw.src.parse.parsers import parse_lorecommendations
 
 
 def test_parse_lorecommendations(tmpdir):

@@ -1,4 +1,4 @@
-from src.parse.parsers import parse_species_xml
+from exgw.src.parse.parsers import parse_species_xml
 
 
 def test_parse_species_xml():

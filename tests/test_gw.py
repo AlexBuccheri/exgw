@@ -1,7 +1,7 @@
 """ Test GW Input Class.
 Run from the root directory with  pytest tests or  pytest -s tests to get print statement outputs.
 """
-from src.inputs.gw import GWInput
+from exgw.src.inputs.gw import GWInput
 
 
 def test_class_gw_with_mandatory_args():

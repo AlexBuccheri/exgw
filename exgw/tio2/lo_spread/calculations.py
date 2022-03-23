@@ -7,8 +7,8 @@ Hence 36 calculations.
 from typing import Optional
 from collections import OrderedDict
 
-from src.basis.optimised_basis import construct_optimised_basis
-from src.job_schedulers import slurm
+from exgw.src.basis.optimised_basis import construct_optimised_basis
+from exgw.src.job_schedulers import slurm
 
 
 class Calculation:

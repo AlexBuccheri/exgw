@@ -1,8 +1,8 @@
 import numpy as np
 
-from src.parse.parsers import parse_species_xml, parse_lorecommendations
+from exgw.src.parse.parsers import parse_species_xml, parse_lorecommendations
 
-from src.basis.optimised_basis import construct_optimised_basis, maximum_pqn_per_valence_orbital, \
+from exgw.src.basis.optimised_basis import construct_optimised_basis, maximum_pqn_per_valence_orbital, \
     filter_lowest_lo_recommendations, filter_highest_lo_recommendations, max_nodes_per_valence_orbital, \
     max_nodes_per_conduction_orbital, max_nodes_per_orbital_channel, n_radial_nodes
 

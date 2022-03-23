@@ -1,8 +1,8 @@
 """ Test writing serialised species data to XML
 """
-from src.parse.parsers import parse_species_xml
+from exgw.src.parse.parsers import parse_species_xml
 
-from src.write.species import species_xml_str_from_dict
+from exgw.src.write.species import species_xml_str_from_dict
 
 
 def test_write_species_file_from_dict():
