@@ -11,7 +11,6 @@ from exgw.src.inputs.gw import GWInput
 from exgw.src.parse.parsers import parse_lorecommendations, parse_species_xml
 from exgw.src.write.species import write_species_file_from_dict
 
-
 # TiO2 specific
 from exgw.tio2.lo_spread.ground_state_xml import converged_input_xml
 from exgw.tio2.lo_spread.calculations import *
@@ -67,7 +66,7 @@ def main(root: str, ground_state_path: str, input_xml: str, calculations: List[C
 
         # Species files
         for x in ['ti', 'o']:
-            file_name = osjp(calculation.directory, x.capitalize() + '.xml')
+            file_name = osjp(full_directory, x.capitalize() + '.xml')
             write_species_file_from_dict(calculation.basis[x], file_name=file_name)
 
         # Run script

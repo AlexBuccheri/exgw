@@ -65,7 +65,7 @@ def species_xml_str_from_dict(species: dict) -> str:
 
     # lapw and any explicit local orbitals, per l-channel
     # Note, there should only be one l(apw) per l-channel
-    print(species['basis']['custom'])
+    # print(species['basis']['custom'])
     for l in range(0, l_max + 1):
         species_str += function_string(species['basis']['custom'][l])
         species_str += local_orbitals_string(los_by_lvalue[l])

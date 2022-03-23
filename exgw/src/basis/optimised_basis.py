@@ -213,7 +213,12 @@ def serialise_optimised_los(default_los: List[dict], conduction_los: List[List[d
     l_to_index = {l: [] for l in range(0, l_max + 1)}
     for i, lo in enumerate(default_los):
         l_value = lo['l']
-        l_to_index[l_value].append(i)
+        try:
+            l_to_index[l_value].append(i)
+        except KeyError:
+            # KeyError when trying to access LOs in l-channels that are not present in
+            # the default basis.
+            pass
 
     optimised_los = []
     for l in range(0, l_max + 1):
@@ -225,6 +230,22 @@ def serialise_optimised_los(default_los: List[dict], conduction_los: List[List[d
             optimised_los.append(lo)
 
     return optimised_los
+
+
+def initialise_optimised_basis(default_basis: dict, l_max: int):
+    """
+    DOCUMENT ME
+    :param default_basis:
+    :param l_max:
+    :return:
+    """
+    # Should only keep lapws up to l_max
+    optimised_basis = copy.deepcopy(default_basis)
+    filtered_lapws = []
+    for lapw in optimised_basis['basis']['custom']:
+        if lapw['l'] <= l_max:
+            filtered_lapws.append(lapw)
+    optimised_basis['basis']['custom'] = filtered_lapws
 
 
 # TODO(Alex) Check this explanation
@@ -269,19 +290,17 @@ def construct_optimised_basis(default_basis: dict,
                              f'in the LO recommendations.')
 
     max_nodes = max_nodes_per_orbital_channel(default_basis)
-
     first_indices = filter_lowest_lo_recommendations(max_nodes)
-    # assert first_indices.shape == len(max_nodes), 'l_max for first_indices set by LOs present in the basis'
 
-    # If l_max exceeds that already present in the basis, pad the first_indices
-    # with zeros
+    # If l_max exceeds that already present in the basis, pad first_indices with zeros
     if first_indices.shape[0] < (l_max + 1):
         size_diff = (l_max + 1) - first_indices.shape[0]
         padding = np.zeros(shape=size_diff, dtype=np.int)
         first_indices = np.concatenate((first_indices, padding), axis=0)
 
     last_indices = filter_highest_lo_recommendations(lo_cutoff, lo_recommendations)
-    assert last_indices.shape[0] == lo_recommendations.shape[0], 'l_max for last_indices set by lo_recommendations'
+    assert last_indices.shape[0] == lo_recommendations.shape[0], \
+        'l_max for last_indices set by lo_recommendations, not the input l_max'
 
     # Create new LOs with the filtered LO recommendations
     # If l-channel has no cut-off, then last_indices[l] = 0, which kills its contribution
@@ -293,7 +312,7 @@ def construct_optimised_basis(default_basis: dict,
         los_by_lvalue[l] = serialised_local_orbitals(l, energies)
 
     # Inject new los into the basis, and return the new basis dictionary
-    optimised_basis = copy.deepcopy(default_basis)
+    optimised_basis = initialise_optimised_basis(default_basis, l_max)
     optimised_basis['basis']['lo'] = serialise_optimised_los(default_basis['basis']['lo'], los_by_lvalue, l_max)
 
     return optimised_basis
